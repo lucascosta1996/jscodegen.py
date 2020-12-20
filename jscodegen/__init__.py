@@ -66,53 +66,53 @@ class CodeGenerator:
 
     def program(self, stmt):
         result = []
-        for b in stmt['body']:
+        for b in stmt.body:
             result += self.generate_statement(b)
         return "".join(result)
 
     def expressionstatement(self, stmt):
-        result = self.generate_expression(stmt['expression'], Precedence.Sequence)
+        result = self.generate_expression(stmt.expression, Precedence.Sequence)
         return result + ";\n"
 
     def forstatement(self, stmt):
         result = "for ("
-        if stmt['init']:
-            result += self.generate_expression(stmt['init'], Precedence.Sequence)
+        if stmt.init:
+            result += self.generate_expression(stmt.init, Precedence.Sequence)
         result += ";"
 
-        if stmt['test']:
-            result += self.space + self.generate_expression(stmt['test'], Precedence.Sequence)
+        if stmt.test:
+            result += self.space + self.generate_expression(stmt.test, Precedence.Sequence)
         result += ";"
 
-        if stmt['update']:
-            result += self.space + self.generate_expression(stmt['update'], Precedence.Sequence)
+        if stmt.update:
+            result += self.space + self.generate_expression(stmt.update, Precedence.Sequence)
         result += ")"
 
-        result += self.space + self.generate_statement(stmt["body"])
+        result += self.space + self.generate_statement(stmt.body)
         return result
 
     def forinstatement(self, stmt):
-        if stmt['left']['type'] == "VariableDeclaration":
-            left = stmt['left']['kind'] + " " + self.generate_statement(stmt['left']['declarations'][0])
+        if stmt.left.type == "VariableDeclaration":
+            left = stmt.left.kind + " " + self.generate_statement(stmt.left.declarations[0])
         else:
-            left = self.generate_expression(stmt['left'], Precedence.Call)
+            left = self.generate_expression(stmt.left, Precedence.Call)
 
-        result = "for" + self.space + "(%s in %s)" % (left, self.generate_expression(stmt['right'], Precedence.Sequence))
+        result = "for" + self.space + "(%s in %s)" % (left, self.generate_expression(stmt.right, Precedence.Sequence))
 
-        result += self.space + self.generate_statement(stmt["body"])
+        result += self.space + self.generate_statement(stmt.body)
         return result
 
     def dowhilestatement(self, stmt):
-        result = "do" + self.space + self.generate_statement(stmt['body'])
+        result = "do" + self.space + self.generate_statement(stmt.body)
         result = result[:-1]
-        result += " while (%s);" % self.generate_expression(stmt['test'], Precedence.Sequence)
+        result += " while (%s);" % self.generate_expression(stmt.test, Precedence.Sequence)
         return result
 
     def switchstatement(self, stmt):
-        cases = stmt['cases']
+        cases = stmt.cases
         fragments = []
 
-        result =  "switch" + self.space + "(%s)" % self.generate_expression(stmt['discriminant'], Precedence.Sequence)
+        result =  "switch" + self.space + "(%s)" % self.generate_expression(stmt.discriminant, Precedence.Sequence)
         result += self.space + "{\n"
         self.indentation += self.indent
         for case in cases:
@@ -123,25 +123,25 @@ class CodeGenerator:
 
     def switchcase(self, stmt):
         result = self.indentation * self.space
-        if stmt['test']:
-            result += "case %s:\n" % self.generate_expression(stmt['test'], Precedence.Sequence)
+        if stmt.test:
+            result += "case %s:\n" % self.generate_expression(stmt.test, Precedence.Sequence)
         else:
             result += "default:\n"
 
         self.indentation += self.indent
-        for consequent in stmt['consequent']:
+        for consequent in stmt.consequent:
             result += self.indentation * self.space
             result += self.generate_statement(consequent) + "\n"
         self.indentation -= self.indent
         return result
 
     def assignmentexpression(self, expr, precedence):
-        left = self.generate_expression(expr['left'], Precedence.Call)
-        right = self.generate_expression(expr['right'], Precedence.Assignment)
-        return self.parenthesize(left + self.space + expr['operator'] + self.space + right, Precedence.Assignment, precedence)
+        left = self.generate_expression(expr.left, Precedence.Call)
+        right = self.generate_expression(expr.right, Precedence.Assignment)
+        return self.parenthesize(left + self.space + expr.operator + self.space + right, Precedence.Assignment, precedence)
 
     def sequenceexpression(self, expr, precedence):
-        result = [self.generate_expression(e, Precedence.Assignment) for e in expr['expressions']]
+        result = [self.generate_expression(e, Precedence.Assignment) for e in expr.expressions]
         return self.parenthesize(", ".join(result), Precedence.Sequence, precedence)
 
     def thisexpression(self, expr, precedence):
@@ -151,14 +151,14 @@ class CodeGenerator:
         return ";"
 
     def binaryexpression(self, expr, precedence):
-        operator = expr['operator']
+        operator = expr.operator
         current_precedence = BinaryPrecedence[operator]
         result = [
-            self.generate_expression(expr['left'], current_precedence),
+            self.generate_expression(expr.left, current_precedence),
             self.space,
             operator,
             self.space,
-            self.generate_expression(expr['right'], current_precedence)
+            self.generate_expression(expr.right, current_precedence)
         ]
         return self.parenthesize("".join(result), current_precedence, precedence)
 
@@ -166,101 +166,101 @@ class CodeGenerator:
         return self.binaryexpression(expr, precedence)
 
     def unaryexpression(self, expr, precedence):
-        operator = expr['operator']
-        result = operator + (" " if len(operator) > 2 else "") + self.generate_expression(expr['argument'], Precedence.Unary)
+        operator = expr.operator
+        result = operator + (" " if len(operator) > 2 else "") + self.generate_expression(expr.argument, Precedence.Unary)
         return self.parenthesize(result, Precedence.Unary, precedence)
 
     def updateexpression(self, expr, precedence):
-        operator = expr['operator']
-        if expr["prefix"]:
-            return self.parenthesize(operator + self.generate_expression(expr['argument'], Precedence.Unary), Precedence.Unary, precedence)
+        operator = expr.operator
+        if expr.prefix:
+            return self.parenthesize(operator + self.generate_expression(expr.argument, Precedence.Unary), Precedence.Unary, precedence)
         else:
-            return self.parenthesize(self.generate_expression(expr['argument'], Precedence.Postfix) + operator, Precedence.Postfix, precedence)
+            return self.parenthesize(self.generate_expression(expr.argument, Precedence.Postfix) + operator, Precedence.Postfix, precedence)
 
     def newexpression(self, expr, precedence):
         result = 'new '
-        result += self.generate_expression(expr['callee'], Precedence.New)
+        result += self.generate_expression(expr.callee, Precedence.New)
         result += "("
-        result += ", ".join([self.generate_expression(x, Precedence.Assignment) for x in expr['arguments']])
+        result += ", ".join([self.generate_expression(x, Precedence.Assignment) for x in expr.arguments])
         return result + ")"
 
     def conditionalexpression(self, expr, precedence):
-        result = self.generate_expression(expr['test'], Precedence.LogicalOR)
+        result = self.generate_expression(expr.test, Precedence.LogicalOR)
         result += self.space + '?' + self.space
-        result += self.generate_expression(expr['consequent'], Precedence.Assignment)
+        result += self.generate_expression(expr.consequent, Precedence.Assignment)
         result += self.space + ':' + self.space
-        result += self.generate_expression(expr['alternate'], Precedence.Assignment)
+        result += self.generate_expression(expr.alternate, Precedence.Assignment)
         return result
 
     def continuestatement(self, stmt):
-        if stmt['label']:
-            return "continue %s;" % stmt['label']['name']
+        if stmt.label:
+            return "continue %s;" % stmt.label.name
         return "continue;"
 
     def breakstatement(self, stmt):
-        if stmt['label']:
-            return "break %s;" % stmt['label']
+        if stmt.label:
+            return "break %s;" % stmt.label
         else:
             return "break;"
 
     def returnstatement(self, stmt):
-        if not stmt['argument']:
+        if not stmt.argument:
             return "return;\n"
 
-        return "return %s;\n" % self.generate_expression(stmt['argument'], Precedence.Sequence)
+        return "return %s;\n" % self.generate_expression(stmt.argument, Precedence.Sequence)
 
 
     def ifstatement(self, stmt):
         result = ''
         while (True):
-            result += "if" + self.space + "(%s)" % self.generate_expression(stmt['test'], Precedence.Sequence) + self.space
-            result += self.generate_statement(stmt['consequent'])
-            if 'alternate' in stmt and stmt['alternate']:
+            result += "if" + self.space + "(%s)" % self.generate_expression(stmt.test, Precedence.Sequence) + self.space
+            result += self.generate_statement(stmt.consequent)
+            if hasattr(stmt, 'alternate') and stmt.alternate:
                 if self.indentation == 0:
                     result = result[:-1]
                 result += self.space + "else" + self.space
-                if stmt['alternate']['type'] == 'IfStatement':
-                    stmt = stmt['alternate']
+                if stmt.alternate.type == 'IfStatement':
+                    stmt = stmt.alternate
                     continue
                 else:
-                    result += self.generate_statement(stmt['alternate'])
+                    result += self.generate_statement(stmt.alternate)
                     break
             else:
                 break
         return result
 
     def whilestatement(self, stmt):
-        result = "while" + self.space + "(%s)" % self.generate_expression(stmt['test'], Precedence.Sequence) + self.space
-        result += self.generate_statement(stmt['body'])
+        result = "while" + self.space + "(%s)" % self.generate_expression(stmt.test, Precedence.Sequence) + self.space
+        result += self.generate_statement(stmt.body)
         return result
 
     def arrayexpression(self, expr, precedence):
-        elements = expr['elements']
+        elements = expr.elements
         if not len(elements):
             return "[]"
         elements = [self.generate_expression(e, Precedence.Assignment) for e in elements]
         return "[%s]" % (","+self.space).join(elements)
 
     def objectpattern(self, expr, precedence):
-        properties = expr['properties']
+        properties = expr.properties
         if not len(properties):
             return "{}"
         properties = [self.generate_expression(e, Precedence.Assignment) for e in properties]
         return "{%s}" % (","+self.space).join(properties)
 
     def property(self, expr, precedence):
-        key = self.generate_property_key(expr['key'], False) + ":" + self.space
-        value = self.generate_expression(expr['value'], Precedence.Sequence)
-        if expr['key']['type'] == expr['value']['type'] == 'Identifier' and expr['key']['name'] == expr['value']['name']:
+        key = self.generate_property_key(expr.key, False) + ":" + self.space
+        value = self.generate_expression(expr.value, Precedence.Sequence)
+        if expr.key.type == expr.value.type == 'Identifier' and expr.key.name == expr.value.name:
             return value
         else:
             return key + value
 
     def spreadelement(self, expr, precedence):
-        return "...%s" % self.generate_expression(expr['argument'], Precedence.Assignment)
+        return "...%s" % self.generate_expression(expr.argument, Precedence.Assignment)
 
     def objectexpression(self, expr, precedence):
-        properties = expr['properties']
+        properties = expr.properties
         if not len(properties):
             return "{}"
         result = ["{"]
@@ -274,21 +274,21 @@ class CodeGenerator:
         return '\n'.join(result)
 
     def memberexpression(self, expr, precedence):
-        result = [self.generate_expression(expr['object'], Precedence.Call) ]
-        if expr['computed']:
-            result += ["[", self.generate_expression(expr['property'], Precedence.Sequence), "]"]
+        result = [self.generate_expression(expr.object, Precedence.Call) ]
+        if expr.computed:
+            result += ["[", self.generate_expression(expr.property, Precedence.Sequence), "]"]
         else:
             result += [
-                "{}.".format('\n{}'.format(self.indentation * self.space) if expr['property']['name'] == 'then' else ''),
-                self.generate_expression(expr['property'], Precedence.Sequence)
+                "{}.".format('\n{}'.format(self.indentation * self.space) if expr.property.name == 'then' else ''),
+                self.generate_expression(expr.property, Precedence.Sequence)
             ]
 
         return self.parenthesize("".join(result), Precedence.Member, precedence)
 
     def callexpression(self, expr, precedence):
-        result = [self.generate_expression(expr['callee'], Precedence.Call), '(' ]
+        result = [self.generate_expression(expr.callee, Precedence.Call), '(' ]
         args = []
-        for arg in expr['arguments']:
+        for arg in expr.arguments:
             args.append(self.generate_expression(arg, Precedence.Assignment))
 
         result.append(", ".join(args))
@@ -298,22 +298,22 @@ class CodeGenerator:
         return "".join(result)
 
     def throwstatement(self, stmt):
-        return "throw %s;\n" % self.generate_expression(stmt['argument'], Precedence.Sequence)
+        return "throw %s;\n" % self.generate_expression(stmt.argument, Precedence.Sequence)
 
     def withstatement(self, stmt):
-        result = "with" + self.space + "(%s)" % self.generate_expression(stmt['object'], Precedence.Sequence)
-        result += self.generate_statement(stmt['body'])
+        result = "with" + self.space + "(%s)" % self.generate_expression(stmt.object, Precedence.Sequence)
+        result += self.generate_statement(stmt.body)
         return result
 
     def identifier(self, expr, precedence):
         return self.generate_identifier(expr)
 
     def literal(self, expr, precedence):
-        if 'regex' in expr:
-            return '/{}/{}'.format(expr['regex']['pattern'], expr['regex']['flags'])
-        if 'value' not in expr:
-            expr['value'] = None
-        value = expr['value']
+        if hasattr(expr, 'regex') and expr.regex is not None:
+            return '/{}/{}'.format(expr.regex.pattern, expr.regex.flags)
+        if not hasattr(expr, 'value'):
+            expr.value = None
+        value = expr.value
         if isinstance(value, str):
             return "%s" % json.dumps(value)
         if isinstance(value, bool):
@@ -323,12 +323,12 @@ class CodeGenerator:
         return str(value)
 
     def functiondeclaration(self, stmt):
-        return "function %s%s" % (self.generate_identifier(stmt['id']), self.generate_function_body(stmt))
+        return "function %s%s" % (self.generate_identifier(stmt.id), self.generate_function_body(stmt))
 
     def variabledeclaration(self, stmt):
-        kind = stmt["kind"]
+        kind = stmt.kind
         declarations = []
-        for declaration in stmt['declarations']:
+        for declaration in stmt.declarations:
             declarations.append(self.generate_statement(declaration))
         result = kind + " " + ", ".join(declarations)
         if result[-1] == '\n':
@@ -336,30 +336,30 @@ class CodeGenerator:
         return result + ";\n"
 
     def variabledeclarator(self, stmt):
-        result = self.generate_expression(stmt['id'], Precedence.Assignment)
-        if stmt['init']:
-            result += " = " + self.generate_expression(stmt['init'], Precedence.Assignment)
+        result = self.generate_expression(stmt.id, Precedence.Assignment)
+        if stmt.init:
+            result += " = " + self.generate_expression(stmt.init, Precedence.Assignment)
         return result
 
     def functionexpression(self, expr, precedence):
         result = ['function']
-        if 'id' in expr and expr['id']:
-            result.append(self.generate_identifier(expr['id']))
+        if hasattr(expr, 'id') and expr.id:
+            result.append(self.generate_identifier(expr.id))
 
         result.append(self.generate_function_body(expr))
         return "".join(result)
 
     def arrowfunctionexpression(self, expr, precedence):
         result = []
-        if 'id' in expr and expr['id']:
-            result.append(self.generate_identifier(expr['id']))
+        if hasattr(expr, 'id') and expr.id:
+            result.append(self.generate_identifier(expr.id))
 
         result.append(self.generate_arrow_function_body(expr))
         return "".join(result)
 
     def blockstatement(self, stmt):
         result = ["{\n"]
-        body = stmt['body']
+        body = stmt.body
         self.indentation += self.indent
         for bstmt in body:
             result.append('{}{}'.format(self.indentation * self.space, self.generate_statement(bstmt)))
@@ -374,18 +374,18 @@ class CodeGenerator:
 
     def trystatement(self, stmt):
         result = "try" + self.space
-        result += self.generate_statement(stmt['block'])
+        result += self.generate_statement(stmt.block)
         result = result[:-1]
-        result += "\n".join([self.generate_statement(s) for s in stmt['handlers']])
+        result += "\n".join([self.generate_statement(s) for s in stmt.handlers])
         return result
 
     def catchclause(self, stmt):
-        result = self.space + "catch" + self.space + "(%s)" % self.generate_expression(stmt['param'], Precedence.Sequence)
-        result += self.generate_statement(stmt['body'])
+        result = self.space + "catch" + self.space + "(%s)" % self.generate_expression(stmt.param, Precedence.Sequence)
+        result += self.generate_statement(stmt.body)
         return result
 
     def labeledstatement(self, stmt):
-        return "%s: %s" % (stmt['label']['name'], self.generate_statement(stmt['body']))
+        return "%s: %s" % (stmt.label.name, self.generate_statement(stmt.body))
 
     def debuggerstatement(self, stmt):
         return "debugger;"
@@ -396,7 +396,7 @@ class CodeGenerator:
         return text
 
     def is_statement(self, node):
-        return Syntax(node["type"]) in Statements
+        return Syntax(node.type) in Statements
 
     def generate_property_key(self, expr, computed):
         if computed:
@@ -405,25 +405,25 @@ class CodeGenerator:
 
     def generate_function_params(self, node):
         params = []
-        for param in node['params']:
+        for param in node.params:
             params.append(self.generate_identifier(param))
         return '(' + ", ".join(params) + ')'
 
     def generate_function_body(self, node):
-        result = [self.generate_function_params(node), self.space, self.generate_statement(node["body"])]
+        result = [self.generate_function_params(node), self.space, self.generate_statement(node.body)]
         return "".join(result)
 
     def generate_arrow_function_body(self, node):
-        result = [self.generate_function_params(node), self.space, '=>', self.space, self.generate_statement(node["body"])]
+        result = [self.generate_function_params(node), self.space, '=>', self.space, self.generate_statement(node.body)]
         return "".join(result)
 
     def generate_expression(self, expr, precedence):
-        node_type = expr["type"]
+        node_type = expr.type
         attr = getattr(self, node_type.lower())
         return attr(expr, precedence)
 
     def generate_statement(self, stmt):
-        node_type = stmt["type"]
+        node_type = stmt.type
         if node_type.lower().endswith('expression'):
             return self.generate_expression(stmt, Precedence.Sequence)
         attr = getattr(self, node_type.lower())
@@ -431,13 +431,13 @@ class CodeGenerator:
         return attr(stmt)
 
     def generate_identifier(self, node):
-        return str(node["name"])
+        return str(node.name)
 
     def generate(self, node):
         if self.is_statement(node):
             return self.generate_statement(node)
         else:
-            print("Unknown", node["type"])
+            print("Unknown", node.type)
         pass
 
 
